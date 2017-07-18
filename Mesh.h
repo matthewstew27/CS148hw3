@@ -13,6 +13,9 @@ class Mesh : public Entity
 
 public:
 
+
+
+    size_t numverts;
     // Vertex struct represents positions and normals
     // for each Vertex across the mesh.
     typedef struct {
@@ -20,6 +23,11 @@ public:
         GLfloat nx, ny, nz;
     }
     Vertex;
+
+
+    typedef std::vector<Vertex> VertexArray;
+    VertexArray m_vertices;         // The mesh of this shape as loaded from disk
+    std::unordered_map<size_t, std::set<size_t>> vertexMap;
 
     // Type used for indices into the vertex array
     typedef size_t Index;
@@ -137,7 +145,7 @@ public:
         // nothing to update per frame :(
     }
 
-    typedef std::vector<Vertex> VertexArray;
+
     typedef std::set<Index> VertexIndexSet;
 
     // Vertex helpers
@@ -215,12 +223,12 @@ protected:
     // public methods. You are also free to design and implement
     // your own protected methods here.
 
+
     float m_total_time;
 
     GLuint m_VBO;
     GLuint m_VAO;
 
-    VertexArray m_vertices;         // The mesh of this shape as loaded from disk
     VertexArray m_vertices_to_draw; // The mesh ordered for drawing as triangular faces
     FaceArray m_faces;              // The faces of this mesh
 
@@ -291,6 +299,45 @@ protected:
         // normal vectors for rendering. Do that here.
     }
 
+    void createVertexMap() {
+        for (size_t i = 0; i < getNumFaces(); i ++) {
+            Face face = getFace(i);
+            Index index0 = face.getIndex(0);
+            Index index1 = face.getIndex(1);
+            Index index2 = face.getIndex(2);
+
+            //Check index0
+            if (vertexMap.find(index0) == vertexMap.end()) { //if does not contain key
+                vertexMap[index0] = std::set<size_t>{index1, index2};
+            } else {        //already has key
+                std::set<size_t> vertices = vertexMap[index0];
+                vertices.insert(index1);
+                vertices.insert(index2);
+                vertexMap[index0] = vertices;
+            }
+
+            //check index1
+            if (vertexMap.find(index1) == vertexMap.end()) { //if does not contain key
+                vertexMap[index1] = std::set<size_t>{index0, index2};
+            } else {        //already has key
+                std::set<size_t> vertices = vertexMap[index1];
+                vertices.insert(index0);
+                vertices.insert(index2);
+                vertexMap[index1] = vertices;
+            }
+
+            //check index2
+            if (vertexMap.find(index2) == vertexMap.end()) { //if does not contain key
+                vertexMap[index2] = std::set<size_t>{index0, index1};
+            } else {        //already has key
+                std::set<size_t> vertices = vertexMap[index2];
+                vertices.insert(index0);
+                vertices.insert(index1);
+                vertexMap[index2] = vertices;
+            }
+
+        }
+    }
     // Loads a .obj file into the mesh's data structure
     // Returns -1 on failure, 0 on success
     int loadOBJ(const std::string& filename) {
@@ -410,8 +457,17 @@ protected:
         // The .obj file didn't already have normals, so we generate them
         // using an algorithm which intuits what they could be
         generateNormals();
-                    printDataStructure(false, true, false);
+        createVertexMap();
+        numverts = m_vertices.size();
+        /*for (size_t i = 0; i < vertexMap.bucket_count(); i ++) {
+            printf("vertex number %zd \n", i);
+            std::set<size_t> vertices = vertexMap[i];
+            printf("size:%zd\n", vertices.size());
+            for (size_t vertx : vertices) {
+                    printf("%zd \n", vertx);
+            }
 
+        }*/
         refresh();
 
         // Success!

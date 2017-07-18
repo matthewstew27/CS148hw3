@@ -9,6 +9,7 @@
 #include <cmath>
 #include <iostream>
 #include <string>
+#include <unordered_map>
 using namespace std;
 
 #define GLEW_STATIC
@@ -59,16 +60,16 @@ void handleInput();
 
 World * g_world;
 
-//--------------------------------------------------------- 
+//---------------------------------------------------------
 // Your task is to implement this method by setting the
-// current mesh to a bunny which models "numIterations" 
+// current mesh to a bunny which models "numIterations"
 // of Laplacian smoothing.
 //---------------------------------------------------------
 void computeLaplacianSmoothedMesh(unsigned int numIterations)
 {
     // We'll double-buffer with two shapes
-    if (g_bunny_1) delete g_bunny_1;
-    if (g_bunny_2) delete g_bunny_2;
+    if (g_bunny_1) g_bunny_1 = g_unaltered_mesh;
+    if (g_bunny_2) g_bunny_2 = g_unaltered_mesh;
 
 #ifdef WIN32
 	g_bunny_1 = new Mesh("../bunny.obj", g_world->m_shader, glm::vec3(0));
@@ -80,8 +81,43 @@ void computeLaplacianSmoothedMesh(unsigned int numIterations)
 
     if (numIterations == 0) {
         g_smoothed_mesh = g_bunny_1;
-    }
+    } else {
+        for (unsigned int iters = 0; iters < numIterations; iters++) {
+            size_t nverts = g_bunny_1->m_vertices.size();
+            for (size_t vertIndex = 0; vertIndex < nverts; vertIndex ++) {
+                //printf("vertIndex = %zu\n", vertIndex);
+                //Mesh::Vertex vert = g_bunny_1->m_vertices[vertIndex];
+                std::set<size_t> neighbors = g_bunny_1->vertexMap[vertIndex];
+                //printf("unweighted x val prior to smoothing = %f\n", g_bunny_2->m_vertices[vertIndex].x);
+                //printf("unweighted y val prior to smoothing = %f\n", g_bunny_2->m_vertices[vertIndex].y);
+               // printf("unweighted z val prior to smoothing = %f\n", g_bunny_2->m_vertices[vertIndex].z);
+                g_bunny_2->m_vertices[vertIndex].x = 0.0;
+                g_bunny_2->m_vertices[vertIndex].y = 0.0;
+                g_bunny_2->m_vertices[vertIndex].z = 0.0;
+                for (size_t neighborvert: neighbors) {
+                    //printf("Neighbor index = %zu\n", neighborvert);
+                    g_bunny_2->m_vertices[vertIndex].x += g_bunny_1->m_vertices[neighborvert].x;
+                    g_bunny_2->m_vertices[vertIndex].y += g_bunny_1->m_vertices[neighborvert].y;
+                    g_bunny_2->m_vertices[vertIndex].z += g_bunny_1->m_vertices[neighborvert].z;
+                }
+                //printf("unweighted x val = %f\n", g_bunny_2->m_vertices[vertIndex].x);
+                //printf("unweighted y val = %f\n", g_bunny_2->m_vertices[vertIndex].y);
+                //printf("unweighted z val = %f\n", g_bunny_2->m_vertices[vertIndex].z);
+                if (neighbors.size() != 0) {
+                    g_bunny_2->m_vertices[vertIndex].x *= (1/((float)neighbors.size()));
+                    g_bunny_2->m_vertices[vertIndex].y *= (1/((float)neighbors.size()));
+                    g_bunny_2->m_vertices[vertIndex].z *= (1/((float)neighbors.size()));
+                }
+                //printf("neighbors size = %zu", neighbors.size());
+                //printf("unweighted x val post weighting = %f\n", g_bunny_2->m_vertices[vertIndex].x);
+                //printf("unweighted y val post weighting = %f\n", g_bunny_2->m_vertices[vertIndex].y);
+                //printf("unweighted z val post weighting = %f\n", g_bunny_2->m_vertices[vertIndex].z);
 
+                g_bunny_1 = g_bunny_2; //allow for iterations
+                //Mesh::Vertex newVert =
+            }
+        }
+    }
     // Assignment Task 3: Smooth the g_smoothed_mesh.
 
     // Using the two above bunnies, g_bunny_1 and
@@ -89,12 +125,12 @@ void computeLaplacianSmoothedMesh(unsigned int numIterations)
     // to set the final g_smoothed_mesh according to
     // "numIterations" iterations of laplacian smoothing
 
-    g_smoothed_mesh = g_bunny_1; // replace this line using your algorithm
-
+    g_smoothed_mesh = g_bunny_2; // replace this line using your algorithm
     g_world->setNewSmoothedMesh(g_smoothed_mesh);
+
 }
 
-//--------------------------------------------------------- 
+//---------------------------------------------------------
 // Handle Key Presses
 //---------------------------------------------------------
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode)
@@ -126,10 +162,10 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode
     }
 }
 
-//--------------------------------------------------------- 
+//---------------------------------------------------------
 // Setup interface with the OS's windowing system
 //---------------------------------------------------------
-GLFWwindow * setupWindow() 
+GLFWwindow * setupWindow()
 {
     glfwInit();
 
@@ -153,7 +189,7 @@ GLFWwindow * setupWindow()
     return window;
 }
 
-//--------------------------------------------------------- 
+//---------------------------------------------------------
 // Setup methods which handle input from hardware
 //---------------------------------------------------------
 void setupInputHandlers(GLFWwindow * window) {
@@ -161,7 +197,7 @@ void setupInputHandlers(GLFWwindow * window) {
     glfwSetCursorPosCallback(window, mouseCallback);
 }
 
-//--------------------------------------------------------- 
+//---------------------------------------------------------
 // Cleanup before application exits
 //---------------------------------------------------------
 void cleanup() {
@@ -169,7 +205,7 @@ void cleanup() {
     if (g_world) delete g_world;
 }
 
-//--------------------------------------------------------- 
+//---------------------------------------------------------
 // Control camera movement with mouse motion
 //---------------------------------------------------------
 bool firstMouse = true;
@@ -190,7 +226,7 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos)
     if (g_world->m_camera) g_world->m_camera->ProcessMouseMovement(xoffset, yoffset);
 }
 
-//--------------------------------------------------------- 
+//---------------------------------------------------------
 // Setup our world with the light and rabbit!
 //---------------------------------------------------------
 void setupWorld(GLFWwindow * window) {
@@ -200,7 +236,7 @@ void setupWorld(GLFWwindow * window) {
     computeLaplacianSmoothedMesh(g_k_initial_num_iterations);
 }
 
-//--------------------------------------------------------- 
+//---------------------------------------------------------
 // Control camera movement with keyboard keys
 //---------------------------------------------------------
 void handleInput()
@@ -217,7 +253,7 @@ void handleInput()
     if (g_keys[GLFW_KEY_D]) g_world->m_camera->ProcessKeyboard(RIGHT, deltaTime);
 }
 
-//--------------------------------------------------------- 
+//---------------------------------------------------------
 // Entry point
 //---------------------------------------------------------
 int main(int argc, char ** argv)
