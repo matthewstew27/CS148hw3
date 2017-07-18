@@ -5,8 +5,8 @@ class Entity;
 #include <set>
 #include <map>
 
-// The Mesh class represents a geometric shape and 
-// uses an list of vertices and a list of faces 
+// The Mesh class represents a geometric shape and
+// uses an list of vertices and a list of faces
 // which connect them.
 class Mesh : public Entity
 {
@@ -108,11 +108,11 @@ public:
         // Reset vertex array to nothing
         glBindVertexArray(0);
     }
-    
+
     void render() const {
 
         // Make sure always to set the current shader before setting uniforms/drawing objects
-        if (m_shader) { 
+        if (m_shader) {
             m_shader->Use();
 
             // set mesh's color
@@ -159,8 +159,8 @@ public:
     inline size_t getNumFaces() const { return m_faces.size(); } // Get the number of faces in this shape
     inline Face getFace(size_t idx) const { return m_faces[idx]; } // Read a face of this shape by index
     inline void setFace(size_t idx, const Face& face) { m_faces[idx] = face; } // Write a face of this shape by index
-    void addFace(const Face& face) { 
-        m_faces.push_back(face); 
+    void addFace(const Face& face) {
+        m_faces.push_back(face);
     }
 
     // Helper function to deal with the particular way
@@ -191,28 +191,28 @@ public:
             if (printPositions) printf("Vertex at: %f, %f, %f\n", m_vertices[ii].x, m_vertices[ii].y, m_vertices[ii].z);
             if (printNormals) printf("Vertex normal: %f, %f, %f\n", m_vertices[ii].nx, m_vertices[ii].ny, m_vertices[ii].nz);
         }
-        
+
         if (printFaces) {
             for (size_t ii = 0; ii < getNumFaces(); ++ii) {
-                printf("Face with indices: %u, %u, %u\n", 
-                    (unsigned int)m_faces[ii].getIndex(0), 
-                    (unsigned int)m_faces[ii].getIndex(1), 
+                printf("Face with indices: %u, %u, %u\n",
+                    (unsigned int)m_faces[ii].getIndex(0),
+                    (unsigned int)m_faces[ii].getIndex(1),
                     (unsigned int)m_faces[ii].getIndex(2));
             }
         }
     }
-    
+
 protected:
 
     // Assignment Task 2:
-    
+
     // You'll need to create an additional data structure and
     // corresponding algorithms to enable lookup of neighboring
     // vertices for any given vertex. This lookup needs to happen
     // as fast as possible, so think hard about which data structure
     // makes the most sense for this task.
-    // Hint: some of your algorithm may need to alter some of the above, 
-    // public methods. You are also free to design and implement 
+    // Hint: some of your algorithm may need to alter some of the above,
+    // public methods. You are also free to design and implement
     // your own protected methods here.
 
     float m_total_time;
@@ -227,7 +227,7 @@ protected:
     // Compute or re-compute the per-vertex normals for this shape
     // using the normals of adjoining faces.
     // We compute the normals for the mesh as the area-weighted average of
-    // the normals of incident faces. This is a simple technique to 
+    // the normals of incident faces. This is a simple technique to
     // implement, but more advanced techniques are possible as well.
     void generateNormals() {
 
@@ -239,6 +239,36 @@ protected:
             m_vertices[ii].nz = 0;
         }
 
+        for (size_t k = 0; k < getNumFaces(); k ++) {
+            Face face = getFace(k);
+            Index index1 = face.getIndex(0);
+
+            Index index2 = face.getIndex(1);
+            Index index3 = face.getIndex(2);
+            Vertex vertex1 = getVertex(index1);
+            Vertex vertex2 = getVertex(index2);
+            Vertex vertex3 = getVertex(index3);
+
+            glm::vec3 edge1 = glm::vec3(vertex1.x -vertex2.x, vertex1.y - vertex2.y, vertex1.z - vertex2.z);
+            glm::vec3 edge2 = glm::vec3(-vertex3.x +vertex2.x, -vertex3.y + vertex2.y, -vertex3.z + vertex2.z);
+            glm::vec3 normal = glm::cross(edge1, edge2);
+            float magnitude = sqrt(pow(normal[0], 2) + pow(normal[1], 2) + pow(normal[2], 2));
+
+            m_vertices[index1].nx += (normal[0] / magnitude);
+            m_vertices[index1].ny += (normal[1] / magnitude);
+            m_vertices[index1].nz += (normal[2] / magnitude);
+
+            m_vertices[index2].nx += (normal[0] / magnitude);
+            m_vertices[index2].ny += (normal[1] / magnitude);
+            m_vertices[index2].nz += (normal[2] / magnitude);
+
+            m_vertices[index3].nx += (normal[0] / magnitude);
+            m_vertices[index3].ny += (normal[1] / magnitude);
+            m_vertices[index3].nz += (normal[2] / magnitude);
+
+
+
+        }
         // Assignment Task 1:
 
         // Loop over faces, adding the normal of each face
@@ -249,14 +279,14 @@ protected:
             // We compute a cross-product of two triangle edges.
             // This direction of this vector will be the normal
             // direction, while the magnitude will be twice
-            // the triangle area. We can therefore use the result 
+            // the triangle area. We can therefore use the result
             // as a weighted normal.
 
 
             // We now add the face normal to the normal stored
             // in each of the vertices using the face
 
-        // After that, each vertex now should have an area-weighted normal. 
+        // After that, each vertex now should have an area-weighted normal.
         // We need to normalize them to turn them into correct unit-length
         // normal vectors for rendering. Do that here.
     }
@@ -344,7 +374,7 @@ protected:
                     if (ii != indexMap.end()) {
                         newIndex = ii->second;
                     } else {
-                        // We didn't find an existing vertex, 
+                        // We didn't find an existing vertex,
                         // so we create a new one
 
                         Vertex position = positions[positionIdx];
@@ -380,6 +410,7 @@ protected:
         // The .obj file didn't already have normals, so we generate them
         // using an algorithm which intuits what they could be
         generateNormals();
+                    printDataStructure(false, true, false);
 
         refresh();
 
